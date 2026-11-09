@@ -21,12 +21,21 @@ permissions:
 
 jobs:
   fast:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, anvil-ci-linux]
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install deps
-        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev
+        # FIX-ONCE (fleet sudo rule): zlib1g-dev is provisioned system-wide on
+        # the fleet host (verified on Dell); fleet runner users hold no sudoers
+        # exceptions, so check-and-skip when present, fail loudly when absent.
+        run: |
+          if dpkg -s zlib1g-dev >/dev/null 2>&1; then
+            echo "zlib1g-dev pre-provisioned on fleet runner - skipping install"
+          else
+            echo "::error::zlib1g-dev missing on this runner (fleet FIX-ONCE provisioning gap)"
+            exit 1
+          fi
       - name: test-repro (single platform, ASan; CBM_REPRO_ONLY filters suites)
         env:
           # Optionally narrow to specific suites for a fast targeted check, e.g.
